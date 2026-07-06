@@ -17,6 +17,7 @@ const els = {
   selTitle: document.getElementById('sel-title'),
   selMeta: document.getElementById('sel-meta'),
   selBadges: document.getElementById('sel-badges'),
+  selExtras: document.getElementById('sel-extras'),
   selDesc: document.getElementById('sel-desc'),
   myRating: document.getElementById('my-rating'),
   myStatus: document.getElementById('my-status'),
@@ -259,12 +260,20 @@ async function pick(r) {
   }
 }
 
+// Строка о подтянутых сезонах/серии — чтобы было видно, что данные на месте
+function extrasText(entry) {
+  if (entry.seasons && entry.seasons.length) return `📺 Сезонов: ${entry.seasons.length} — будут показаны на странице`;
+  if (entry.collection && entry.collection.parts) return `🎞 Серия: ${entry.collection.name} (${entry.collection.parts.length} ч.)`;
+  return '';
+}
+
 function renderSelected() {
   els.selPoster.src = current.poster;
   els.selTitle.textContent = current.title;
   els.selMeta.textContent = [current.originalTitle, current.year].filter(Boolean).join(' · ');
   els.selBadges.innerHTML =
     current.imdbRating ? `<span class="badge badge-imdb">IMDb ${current.imdbRating}</span>` : '';
+  els.selExtras.textContent = extrasText(current);
   els.selDesc.textContent = current.description;
   els.myRating.value = '';
   els.myComment.value = '';
@@ -276,10 +285,14 @@ function renderSelected() {
 }
 
 function buildEntry() {
+  // Оценка строго в пределах 0–10
+  const rating = els.myRating.value
+    ? Math.max(0, Math.min(10, Number(els.myRating.value)))
+    : null;
   return {
     ...current,
     type: els.myType.value,
-    myRating: els.myRating.value ? Number(els.myRating.value) : null,
+    myRating: Number.isNaN(rating) ? null : rating,
     myComment: els.myComment.value.trim(),
     status: els.myStatus.value
   };
@@ -365,6 +378,7 @@ els.downloadBtn.addEventListener('click', async () => {
         const isMovie = item.type === 'film';
         const details = await tmdbFetch(`/${isMovie ? 'movie' : 'tv'}/${item.tmdbId}`);
         await enrichExtras(current, details, isMovie);
+        els.selExtras.textContent = extrasText(current);
         setStatus(els.searchStatus, `Режим редактирования: «${item.title}». Сезоны/серия обновлены из TMDb — нажмите «Добавить», чтобы сохранить.`);
       } catch (_) { /* не критично — сохранится без обновления */ }
     }
