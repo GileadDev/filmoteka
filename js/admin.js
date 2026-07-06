@@ -27,10 +27,14 @@ const els = {
   addBtn: document.getElementById('add-btn'),
   resultStatus: document.getElementById('result-status'),
   jsonOutput: document.getElementById('json-output'),
-  ghToken: document.getElementById('gh-token'),
-  ghOwner: document.getElementById('gh-owner'),
-  ghRepo: document.getElementById('gh-repo'),
-  ghBranch: document.getElementById('gh-branch')
+  authForm: document.getElementById('auth-form'),
+  authSession: document.getElementById('auth-session'),
+  authEmail: document.getElementById('auth-email'),
+  authPassword: document.getElementById('auth-password'),
+  authUser: document.getElementById('auth-user'),
+  authStatus: document.getElementById('auth-status'),
+  loginBtn: document.getElementById('login-btn'),
+  logoutBtn: document.getElementById('logout-btn')
 };
 
 let current = null;      // выбранное произведение (заготовка записи)
@@ -43,14 +47,39 @@ els.omdbToken.value = localStorage.getItem('omdbToken') || '';
 els.tmdbToken.addEventListener('change', () => localStorage.setItem('tmdbToken', els.tmdbToken.value.trim()));
 els.omdbToken.addEventListener('change', () => localStorage.setItem('omdbToken', els.omdbToken.value.trim()));
 
-// --- Настройки GitHub: автозаполнение (общая логика в js/gh.js) + сохранение ---
-const ghCfg = GH.config();
-els.ghToken.value = ghCfg.token;
-els.ghOwner.value = ghCfg.owner;
-els.ghRepo.value = ghCfg.repo;
-els.ghBranch.value = ghCfg.branch;
-[['ghToken', els.ghToken], ['ghOwner', els.ghOwner], ['ghRepo', els.ghRepo], ['ghBranch', els.ghBranch]]
-  .forEach(([key, el]) => el.addEventListener('change', () => localStorage.setItem(key, el.value.trim())));
+// --- Вход администратора (Supabase Auth) ---
+async function refreshAuthUi() {
+  const email = await DB.adminEmail();
+  els.authForm.hidden = !!email;
+  els.authSession.hidden = !email;
+  if (email) els.authUser.textContent = '✓ Вы вошли как ' + email;
+}
+
+els.loginBtn.addEventListener('click', async () => {
+  const email = els.authEmail.value.trim();
+  const password = els.authPassword.value;
+  if (!email || !password) {
+    setStatus(els.authStatus, 'Введите email и пароль.', true);
+    return;
+  }
+  setStatus(els.authStatus, 'Вхожу…');
+  try {
+    await DB.signIn(email, password);
+    setStatus(els.authStatus, '');
+    els.authPassword.value = '';
+    refreshAuthUi();
+  } catch (err) {
+    setStatus(els.authStatus, 'Ошибка входа: ' + err.message, true);
+  }
+});
+els.authPassword.addEventListener('keydown', e => { if (e.key === 'Enter') els.loginBtn.click(); });
+
+els.logoutBtn.addEventListener('click', async () => {
+  await DB.signOut();
+  refreshAuthUi();
+});
+
+refreshAuthUi();
 
 // TMDb: поддерживаем и v3 api_key, и v4 Bearer-токен (v4 начинается с "ey")
 function tmdbFetch(path, params = {}) {
@@ -240,28 +269,17 @@ function buildEntry() {
   };
 }
 
-// --- Кнопка «Добавить в фильмотеку» (запись в data.json через GitHub API) ---
-async function addToRepo() {
-  if (!els.ghToken.value.trim()) { setStatus(els.resultStatus, 'Укажите GitHub-токен в разделе 1.', true); return; }
-  if (!els.ghOwner.value.trim() || !els.ghRepo.value.trim()) { setStatus(els.resultStatus, 'Укажите владельца и репозиторий в разделе 1.', true); return; }
-
+// --- Кнопка «Добавить в фильмотеку» (запись в базу, мгновенно) ---
+async function addToDb() {
+  if (!(await DB.isAdmin())) {
+    setStatus(els.resultStatus, 'Сначала войдите (раздел 1) — без входа база не примет запись.', true);
+    return;
+  }
   const entry = buildEntry();
-
-  setStatus(els.resultStatus, 'Сохраняю в GitHub…');
+  setStatus(els.resultStatus, 'Сохраняю…');
   try {
-    // 1. Текущее содержимое data.json (нужен sha для обновления)
-    const { data, sha } = await GH.loadData();
-
-    // 2. Добавляем (или заменяем, если такой id уже есть)
-    const idx = data.findIndex(i => i.id === entry.id);
-    let replaced = false;
-    if (idx >= 0) { data[idx] = entry; replaced = true; } else { data.unshift(entry); }
-
-    // 3. Коммитим обновлённый файл
-    await GH.saveData(data, sha, `${replaced ? 'Обновлён' : 'Добавлен'}: ${entry.title}`);
-
-    setStatus(els.resultStatus,
-      `✓ «${entry.title}» ${replaced ? 'обновлён' : 'добавлен'}! Сайт обновится через минуту.`);
+    await DB.upsert(entry);
+    setStatus(els.resultStatus, `✓ «${entry.title}» сохранён — уже на сайте!`);
     // Готовим форму к следующему добавлению
     els.searchInput.value = '';
     els.searchInput.focus();
@@ -270,7 +288,7 @@ async function addToRepo() {
     setStatus(els.resultStatus, 'Ошибка: ' + err.message, true);
   }
 }
-els.addBtn.addEventListener('click', addToRepo);
+els.addBtn.addEventListener('click', addToDb);
 
 // --- Кнопка «Скопировать JSON» ---
 els.copyBtn.addEventListener('click', async () => {
@@ -286,25 +304,20 @@ els.copyBtn.addEventListener('click', async () => {
   }
 });
 
-// --- Кнопка «Скачать обновлённый data.json» ---
+// --- Кнопка «Скачать резервную копию» (весь каталог из базы в data.json) ---
 els.downloadBtn.addEventListener('click', async () => {
-  if (!current) return;
-  let data = [];
   try {
-    data = await (await fetch('data.json?nocache=' + Date.now())).json();
-  } catch (_) {
-    setStatus(els.resultStatus, 'Не удалось прочитать текущий data.json — скачаю файл только с новой записью.', true);
+    const data = await DB.loadAll();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus(els.resultStatus, 'Резервная копия каталога скачана.');
+  } catch (err) {
+    setStatus(els.resultStatus, 'Ошибка: ' + err.message, true);
   }
-  const entry = buildEntry();
-  const idx = data.findIndex(i => i.id === entry.id);
-  if (idx >= 0) data[idx] = entry; else data.push(entry);
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'data.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-  setStatus(els.resultStatus, 'Файл скачан. Замените им data.json в репозитории и закоммитьте.');
 });
 
 // --- Режим редактирования: admin.html?edit=<id> (переход со страницы фильма) ---
@@ -312,7 +325,7 @@ els.downloadBtn.addEventListener('click', async () => {
   const editId = new URLSearchParams(location.search).get('edit');
   if (!editId) return;
   try {
-    const data = await (await fetch('data.json?nocache=' + Date.now())).json();
+    const data = await DB.loadAll();
     const item = data.find(i => i.id === editId);
     if (!item) {
       setStatus(els.searchStatus, 'Запись не найдена: ' + editId, true);

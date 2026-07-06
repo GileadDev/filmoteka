@@ -16,11 +16,10 @@ const PLACEHOLDER_POSTER =
 
 async function loadData() {
   try {
-    const res = await fetch('data.json');
-    state.items = await res.json();
+    state.items = await DB.loadAll();
   } catch (e) {
     document.getElementById('content').innerHTML =
-      '<p class="empty-msg">Не удалось загрузить data.json</p>';
+      '<p class="empty-msg">Не удалось загрузить каталог: ' + e.message + '</p>';
     return;
   }
   render();

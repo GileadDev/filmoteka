@@ -111,28 +111,27 @@
         Ключи сохраняются автоматически и никуда не отправляются, кроме самих TMDb/OMDb.
       </div>
 
-      <h2 style="margin-top:20px">GitHub-токен (для кнопки «Добавить»)</h2>
-      <div class="admin-row">
-        <label style="flex:2 1 100%">Personal Access Token
-          <input id="gh-token" type="password" placeholder="github_pat_… или ghp_…">
+      <h2 style="margin-top:20px">Вход администратора</h2>
+      <div class="admin-row" id="auth-form">
+        <label>Email
+          <input id="auth-email" type="email" autocomplete="username" placeholder="you@example.com">
+        </label>
+        <label>Пароль
+          <input id="auth-password" type="password" autocomplete="current-password" placeholder="пароль">
+        </label>
+        <label style="flex:0 0 auto;justify-content:flex-end">
+          <span>&nbsp;</span>
+          <button class="btn" id="login-btn">Войти</button>
         </label>
       </div>
-      <div class="admin-row">
-        <label>Владелец (owner)
-          <input id="gh-owner" type="text" placeholder="GileadDev">
-        </label>
-        <label>Репозиторий
-          <input id="gh-repo" type="text" placeholder="filmoteka">
-        </label>
-        <label>Ветка
-          <input id="gh-branch" type="text" placeholder="main">
-        </label>
+      <div class="admin-row" id="auth-session" hidden>
+        <span id="auth-user" style="align-self:center"></span>
+        <button class="btn secondary" id="logout-btn" style="flex:0 0 auto">Выйти</button>
       </div>
+      <div id="auth-status" class="status-msg" hidden></div>
       <div class="hint">
-        Токен даёт кнопке «Добавить» право записать <code>data.json</code> в ваш репозиторий.
-        Создать: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:var(--accent)">github.com → Fine-grained token</a> →
-        Repository access: только <b>filmoteka</b> → Permissions → <b>Contents: Read and write</b>.
-        Хранится только в вашем браузере, в репозиторий не попадает. Поля владельца/репозитория заполняются автоматически на опубликованном сайте.
+        Вход даёт право добавлять, изменять и удалять записи — изменения появляются на сайте мгновенно.
+        Посетители без входа могут только смотреть.
       </div>
     </div>
 
@@ -180,7 +179,7 @@
             <summary style="cursor:pointer;color:var(--text-dim);font-size:0.82rem">Другие способы (вручную)</summary>
             <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
               <button class="btn secondary" id="copy-json-btn">Скопировать JSON-запись</button>
-              <button class="btn secondary" id="download-btn">Скачать обновлённый data.json</button>
+              <button class="btn secondary" id="download-btn">Скачать резервную копию (data.json)</button>
             </div>
           </details>
         </div>
@@ -189,7 +188,8 @@
     </div>
   </div>
 
-  <script src="js/gh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/db.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>
