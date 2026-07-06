@@ -1,0 +1,50 @@
+[
+  {
+    "id": "inception-2010",
+    "title": "Начало",
+    "originalTitle": "Inception",
+    "type": "film",
+    "year": 2010,
+    "poster": "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+    "imdbRating": 8.8,
+    "myRating": 9.5,
+    "description": "Кобб — талантливый вор, лучший из лучших в опасном искусстве извлечения: он крадёт ценные секреты из глубин подсознания во время сна. Но теперь ему предстоит обратная задача — не украсть идею, а внедрить её.",
+    "myComment": "Смотрел трижды, финал до сих пор спорный.",
+    "status": "watched",
+    "dateAdded": "2026-06-30",
+    "imdbId": "tt1375666",
+    "tmdbId": 27205
+  },
+  {
+    "id": "breaking-bad-2008",
+    "title": "Во все тяжкие",
+    "originalTitle": "Breaking Bad",
+    "type": "series",
+    "year": 2008,
+    "poster": "https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
+    "imdbRating": 9.5,
+    "myRating": 10,
+    "description": "Школьный учитель химии Уолтер Уайт узнаёт, что болен раком лёгких. Чтобы обеспечить семью, он начинает варить метамфетамин — и постепенно превращается из тихого семьянина в короля преступного мира.",
+    "myComment": "Лучший сериал, что я видел. Пересмотрю ещё не раз.",
+    "status": "watched",
+    "dateAdded": "2026-07-02",
+    "imdbId": "tt0903747",
+    "tmdbId": 1396
+  },
+  {
+    "id": "attack-on-titan-2013",
+    "title": "Атака титанов",
+    "originalTitle": "Shingeki no Kyojin",
+    "type": "anime",
+    "year": 2013,
+    "poster": "https://image.tmdb.org/t/p/w500/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg",
+    "imdbRating": 9.1,
+    "myRating": 8.5,
+    "description": "Человечество укрылось за гигантскими стенами от титанов — огромных существ, пожирающих людей. Когда стена рушится, юный Эрен Йегер клянётся уничтожить их всех до единого.",
+    "myComment": "Начало мощное, смотрю дальше.",
+    "status": "watching",
+    "dateAdded": "2026-07-05",
+    "imdbId": "tt2560140",
+    "tmdbId": 1429
+  }
+]

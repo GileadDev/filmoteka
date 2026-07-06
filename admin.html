@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Добавление — Моя фильмотека</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Стили только для admin-инструмента */
+    .admin-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    .admin-section h2 { font-size: 1.05rem; margin-bottom: 12px; }
+    .admin-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    .admin-row label {
+      display: flex; flex-direction: column; gap: 4px;
+      font-size: 0.82rem; color: var(--text-dim); flex: 1; min-width: 160px;
+    }
+    input, select, textarea, button.btn {
+      background: #10141b;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 0.92rem;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { outline: 1px solid var(--accent); }
+    button.btn {
+      background: var(--accent); color: #14161a; font-weight: 700;
+      cursor: pointer; border-color: var(--accent);
+    }
+    button.btn.secondary { background: transparent; color: var(--text); border-color: var(--border); }
+    button.btn:hover { filter: brightness(1.1); }
+    .search-results { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .search-result {
+      display: flex; gap: 12px; align-items: center;
+      background: #10141b; border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; cursor: pointer;
+    }
+    .search-result:hover { border-color: var(--accent); }
+    .search-result img { width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #23293a; }
+    .hint { color: var(--text-dim); font-size: 0.8rem; margin-top: 6px; }
+    #json-output {
+      width: 100%; min-height: 220px; font-family: Consolas, monospace;
+      font-size: 0.82rem; white-space: pre; margin-top: 10px;
+    }
+    .status-msg { font-size: 0.85rem; margin-top: 8px; color: var(--accent-my); }
+    .status-msg.error { color: #f87171; }
+    #preview .card { cursor: default; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <div class="site-title">🛠 Добавление в <span>фильмотеку</span></div>
+      <div class="site-subtitle">Локальный инструмент — не публикуется в меню сайта</div>
+    </header>
+
+    <div class="admin-section">
+      <h2>1. Токены API (хранятся только в вашем браузере — localStorage)</h2>
+      <div class="admin-row">
+        <label>TMDb API-ключ (v3) или Read Access Token (v4)
+          <input id="tmdb-token" type="password" placeholder="ключ TMDb">
+        </label>
+        <label>OMDb API-ключ
+          <input id="omdb-token" type="password" placeholder="ключ OMDb">
+        </label>
+      </div>
+      <div class="hint">
+        Получить бесплатно: <a href="https://www.themoviedb.org/settings/api" target="_blank" style="color:var(--accent)">themoviedb.org/settings/api</a> и
+        <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" style="color:var(--accent)">omdbapi.com/apikey.aspx</a>.
+        Ключи сохраняются автоматически и никуда не отправляются, кроме самих TMDb/OMDb.
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <h2>2. Поиск произведения</h2>
+      <div class="admin-row">
+        <input id="search-input" type="text" placeholder="Название фильма / сериала / аниме" style="flex:3">
+        <button class="btn" id="search-btn">Найти</button>
+      </div>
+      <div id="search-status" class="status-msg" hidden></div>
+      <div class="search-results" id="search-results"></div>
+    </div>
+
+    <div class="admin-section" id="edit-section" hidden>
+      <h2>3. Предпросмотр и мои данные</h2>
+      <div id="preview" class="cards" style="margin-bottom:14px"></div>
+      <div class="admin-row">
+        <label>Моя оценка (0–10)
+          <input id="my-rating" type="number" min="0" max="10" step="0.5" placeholder="8.5">
+        </label>
+        <label>Статус
+          <select id="my-status">
+            <option value="watched">Просмотрено</option>
+            <option value="watching">Сейчас смотрю</option>
+          </select>
+        </label>
+        <label>Тип
+          <select id="my-type">
+            <option value="film">Фильм</option>
+            <option value="series">Сериал</option>
+            <option value="anime">Аниме</option>
+          </select>
+        </label>
+      </div>
+      <div class="admin-row">
+        <label style="flex:1 1 100%">Мой комментарий
+          <textarea id="my-comment" rows="2" placeholder="Пара слов о впечатлениях"></textarea>
+        </label>
+      </div>
+      <div class="admin-row">
+        <button class="btn" id="copy-json-btn">Скопировать JSON-запись</button>
+        <button class="btn secondary" id="download-btn">Скачать обновлённый data.json</button>
+      </div>
+      <div id="result-status" class="status-msg" hidden></div>
+      <textarea id="json-output" readonly hidden></textarea>
+    </div>
+  </div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>

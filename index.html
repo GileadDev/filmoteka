@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Моя фильмотека</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <div class="site-title">🎬 Моя <span>фильмотека</span></div>
+      <div class="site-subtitle">Просмотренные фильмы, сериалы и аниме</div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="home">Главная</button>
+      <button class="tab-btn" data-tab="top">Топ 100</button>
+      <button class="tab-btn" data-tab="new">Новинки</button>
+    </nav>
+
+    <div class="filters" id="filters">
+      <button class="filter-btn active" data-filter="recent">Недавно просмотренные</button>
+      <button class="filter-btn" data-filter="rating">Топ по оценке</button>
+      <button class="filter-btn" data-filter="watching">Сейчас смотрю</button>
+    </div>
+
+    <div class="filters type-filters" id="type-filters">
+      <button class="type-btn active" data-type="all">Все</button>
+      <button class="type-btn" data-type="film">Фильмы</button>
+      <button class="type-btn" data-type="series">Сериалы</button>
+      <button class="type-btn" data-type="anime">Аниме</button>
+    </div>
+
+    <div id="content" class="cards"></div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
