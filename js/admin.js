@@ -43,35 +43,14 @@ els.omdbToken.value = localStorage.getItem('omdbToken') || '';
 els.tmdbToken.addEventListener('change', () => localStorage.setItem('tmdbToken', els.tmdbToken.value.trim()));
 els.omdbToken.addEventListener('change', () => localStorage.setItem('omdbToken', els.omdbToken.value.trim()));
 
-// --- Настройки GitHub: автозаполнение из адреса + сохранение ---
-function deriveRepo() {
-  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
-  if (!m) return null;
-  const seg = location.pathname.split('/').filter(Boolean);
-  return { owner: m[1], repo: seg[0] || '' };
-}
-const derived = deriveRepo();
-els.ghToken.value = localStorage.getItem('ghToken') || '';
-els.ghOwner.value = localStorage.getItem('ghOwner') || (derived && derived.owner) || 'GileadDev';
-els.ghRepo.value = localStorage.getItem('ghRepo') || (derived && derived.repo) || 'filmoteka';
-els.ghBranch.value = localStorage.getItem('ghBranch') || 'main';
+// --- Настройки GitHub: автозаполнение (общая логика в js/gh.js) + сохранение ---
+const ghCfg = GH.config();
+els.ghToken.value = ghCfg.token;
+els.ghOwner.value = ghCfg.owner;
+els.ghRepo.value = ghCfg.repo;
+els.ghBranch.value = ghCfg.branch;
 [['ghToken', els.ghToken], ['ghOwner', els.ghOwner], ['ghRepo', els.ghRepo], ['ghBranch', els.ghBranch]]
   .forEach(([key, el]) => el.addEventListener('change', () => localStorage.setItem(key, el.value.trim())));
-
-// --- Base64 <-> UTF-8 (для содержимого файла в GitHub API) ---
-function utf8ToBase64(str) {
-  const bytes = new TextEncoder().encode(str);
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(bin);
-}
-function base64ToUtf8(b64) {
-  const bin = atob(b64.replace(/\s/g, ''));
-  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
 
 // TMDb: поддерживаем и v3 api_key, и v4 Bearer-токен (v4 начинается с "ey")
 function tmdbFetch(path, params = {}) {
@@ -213,6 +192,19 @@ async function pick(r) {
       tmdbId: details.id
     };
 
+    // Серия фильмов (коллекция TMDb) — «запекаем» список частей в запись,
+    // чтобы публичный сайт мог показать ветку франшизы без запросов к API
+    if (isMovie && details.belongs_to_collection) {
+      try {
+        const col = await tmdbFetch('/collection/' + details.belongs_to_collection.id);
+        const parts = (col.parts || [])
+          .filter(p => p.release_date)  // только вышедшие
+          .sort((a, b) => a.release_date.localeCompare(b.release_date))
+          .map(p => ({ tmdbId: p.id, title: p.title, year: Number(p.release_date.slice(0, 4)) || null }));
+        if (parts.length > 1) current.collection = { id: col.id, name: col.name, parts };
+      } catch (_) { /* коллекция недоступна — просто без неё */ }
+    }
+
     setStatus(els.searchStatus,
       imdbRating === null && omdbKey ? 'Готово (рейтинг IMDb получить не удалось).' :
       !omdbKey ? 'Готово. Без ключа OMDb рейтинг IMDb не подтянут.' : '');
@@ -250,30 +242,15 @@ function buildEntry() {
 
 // --- Кнопка «Добавить в фильмотеку» (запись в data.json через GitHub API) ---
 async function addToRepo() {
-  const token = els.ghToken.value.trim();
-  const owner = els.ghOwner.value.trim();
-  const repo = els.ghRepo.value.trim();
-  const branch = els.ghBranch.value.trim() || 'main';
-  if (!token) { setStatus(els.resultStatus, 'Укажите GitHub-токен в разделе 1.', true); return; }
-  if (!owner || !repo) { setStatus(els.resultStatus, 'Укажите владельца и репозиторий в разделе 1.', true); return; }
+  if (!els.ghToken.value.trim()) { setStatus(els.resultStatus, 'Укажите GitHub-токен в разделе 1.', true); return; }
+  if (!els.ghOwner.value.trim() || !els.ghRepo.value.trim()) { setStatus(els.resultStatus, 'Укажите владельца и репозиторий в разделе 1.', true); return; }
 
-  const headers = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' };
-  const apiBase = `https://api.github.com/repos/${owner}/${repo}/contents/data.json`;
   const entry = buildEntry();
 
   setStatus(els.resultStatus, 'Сохраняю в GitHub…');
   try {
     // 1. Текущее содержимое data.json (нужен sha для обновления)
-    let sha = null, data = [];
-    const getRes = await fetch(`${apiBase}?ref=${encodeURIComponent(branch)}`, { headers });
-    if (getRes.ok) {
-      const j = await getRes.json();
-      sha = j.sha;
-      try { data = JSON.parse(base64ToUtf8(j.content)); } catch (_) { data = []; }
-      if (!Array.isArray(data)) data = [];
-    } else if (getRes.status !== 404) {
-      throw new Error('чтение data.json: HTTP ' + getRes.status);
-    }
+    const { data, sha } = await GH.loadData();
 
     // 2. Добавляем (или заменяем, если такой id уже есть)
     const idx = data.findIndex(i => i.id === entry.id);
@@ -281,18 +258,7 @@ async function addToRepo() {
     if (idx >= 0) { data[idx] = entry; replaced = true; } else { data.unshift(entry); }
 
     // 3. Коммитим обновлённый файл
-    const body = {
-      message: `${replaced ? 'Обновлён' : 'Добавлен'}: ${entry.title}`,
-      content: utf8ToBase64(JSON.stringify(data, null, 2) + '\n'),
-      branch
-    };
-    if (sha) body.sha = sha;
-    const putRes = await fetch(apiBase, { method: 'PUT', headers, body: JSON.stringify(body) });
-    if (!putRes.ok) {
-      let detail = 'HTTP ' + putRes.status;
-      try { const e = await putRes.json(); if (e.message) detail += ' — ' + e.message; } catch (_) {}
-      throw new Error('запись data.json: ' + detail);
-    }
+    await GH.saveData(data, sha, `${replaced ? 'Обновлён' : 'Добавлен'}: ${entry.title}`);
 
     setStatus(els.resultStatus,
       `✓ «${entry.title}» ${replaced ? 'обновлён' : 'добавлен'}! Сайт обновится через минуту.`);
@@ -340,3 +306,27 @@ els.downloadBtn.addEventListener('click', async () => {
   URL.revokeObjectURL(a.href);
   setStatus(els.resultStatus, 'Файл скачан. Замените им data.json в репозитории и закоммитьте.');
 });
+
+// --- Режим редактирования: admin.html?edit=<id> (переход со страницы фильма) ---
+(async function initEditMode() {
+  const editId = new URLSearchParams(location.search).get('edit');
+  if (!editId) return;
+  try {
+    const data = await (await fetch('data.json?nocache=' + Date.now())).json();
+    const item = data.find(i => i.id === editId);
+    if (!item) {
+      setStatus(els.searchStatus, 'Запись не найдена: ' + editId, true);
+      return;
+    }
+    current = item;
+    renderSelected();
+    // Предзаполняем мои поля сохранёнными значениями (renderSelected их очищает)
+    els.myRating.value = item.myRating ?? '';
+    els.myComment.value = item.myComment || '';
+    els.myStatus.value = item.status || 'watched';
+    els.myType.value = item.type || 'film';
+    setStatus(els.searchStatus, `Режим редактирования: «${item.title}». Измените поля и нажмите «Добавить» — запись обновится.`);
+  } catch (err) {
+    setStatus(els.searchStatus, 'Ошибка загрузки записи: ' + err.message, true);
+  }
+})();

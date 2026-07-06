@@ -265,6 +265,81 @@ nav.tabs {
 }
 .back-link:hover { color: var(--text); }
 
+/* ===== Ветка серии фильмов (film.html) ===== */
+.film-collection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.film-collection h3 {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.col-part {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: #10141b;
+  border: 1px solid var(--border);
+}
+a.col-part:hover { border-color: var(--accent); }
+.col-part.current { border-color: var(--accent); }
+.col-here { color: var(--accent); font-size: 0.8rem; }
+.col-part.missing { color: var(--text-dim); }
+.badge-missing { background: #2a303c; color: var(--text-dim); font-weight: 600; }
+
+/* ===== Панель администратора (film.html, видна только с токеном) ===== */
+.admin-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+.admin-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+.admin-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-my);
+  cursor: pointer;
+}
+.admin-actions { display: flex; gap: 8px; }
+.btn-mini {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.btn-mini:hover { border-color: var(--accent); }
+.btn-mini.danger { color: #f87171; }
+.btn-mini.danger:hover { border-color: #f87171; }
+.admin-status { width: 100%; font-size: 0.85rem; color: var(--accent-my); }
+.admin-status.error { color: #f87171; }
+
 /* ===== Адаптив ===== */
 @media (max-width: 640px) {
   .card { flex-direction: row; }
