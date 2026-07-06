@@ -65,15 +65,20 @@ function wireAdminPanel(item) {
   const delBtn = document.getElementById('delete-btn');
   if (!toggle) return;
 
-  // Чекбокс «Сейчас смотрю» — мгновенно сохраняет статус в базе
+  // Чекбокс «Сейчас смотрю» — мгновенно сохраняет статус в базе.
+  // Активным может быть только один фильм: при включении статус
+  // снимается со всех остальных записей автоматически.
   toggle.addEventListener('change', async () => {
     const newStatus = toggle.checked ? 'watching' : 'watched';
     toggle.disabled = true;
     setAdminStatus('Сохраняю…');
     try {
+      if (newStatus === 'watching') await DB.clearWatchingExcept(item.id);
       item.status = newStatus;
       await DB.upsert(item);
-      setAdminStatus(`✓ Статус: «${STATUS_LABELS[newStatus]}»`);
+      setAdminStatus(newStatus === 'watching'
+        ? '✓ Статус: «Сейчас смотрю» — с предыдущего фильма снят.'
+        : `✓ Статус: «${STATUS_LABELS[newStatus]}»`);
     } catch (err) {
       item.status = newStatus === 'watching' ? 'watched' : 'watching';
       toggle.checked = !toggle.checked; // откатываем визуально

@@ -79,6 +79,17 @@ const DB = (() => {
     if (error) throw new Error('удаление: ' + error.message);
   }
 
+  // «Сейчас смотрю» может быть только у одного фильма:
+  // снимает статус watching со всех записей, кроме указанной
+  async function clearWatchingExcept(id) {
+    requireConfig();
+    const { error } = await client.from('films')
+      .update({ status: 'watched' })
+      .eq('status', 'watching')
+      .neq('id', id);
+    if (error) throw new Error('смена статуса: ' + error.message);
+  }
+
   // --- Авторизация администратора ---
   async function signIn(email, password) {
     requireConfig();
@@ -102,5 +113,5 @@ const DB = (() => {
     return data && data.session ? data.session.user.email : null;
   }
 
-  return { loadAll, upsert, remove, signIn, signOut, isAdmin, adminEmail };
+  return { loadAll, upsert, remove, clearWatchingExcept, signIn, signOut, isAdmin, adminEmail };
 })();

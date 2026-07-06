@@ -278,6 +278,8 @@ async function addToDb() {
   const entry = buildEntry();
   setStatus(els.resultStatus, 'Сохраняю…');
   try {
+    // «Сейчас смотрю» может быть только у одного фильма
+    if (entry.status === 'watching') await DB.clearWatchingExcept(entry.id);
     await DB.upsert(entry);
     setStatus(els.resultStatus, `✓ «${entry.title}» сохранён — уже на сайте!`);
     // Готовим форму к следующему добавлению
