@@ -1,5 +1,6 @@
-// Инструмент наполнения: поиск в TMDb (ru-RU) + добор рейтинга IMDb из OMDb,
-// предпросмотр и генерация готовой записи для data.json.
+// Инструмент наполнения: живой поиск в TMDb (ru-RU) + добор рейтинга IMDb из OMDb.
+// Выбранный фильм показывается карточкой (постер, описание, рейтинг),
+// рядом — панель редактирования (моя оценка, комментарий, статус, тип).
 // Токены хранятся в localStorage браузера и в репозиторий не попадают.
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -9,11 +10,14 @@ const els = {
   tmdbToken: document.getElementById('tmdb-token'),
   omdbToken: document.getElementById('omdb-token'),
   searchInput: document.getElementById('search-input'),
-  searchBtn: document.getElementById('search-btn'),
   searchStatus: document.getElementById('search-status'),
   searchResults: document.getElementById('search-results'),
-  editSection: document.getElementById('edit-section'),
-  preview: document.getElementById('preview'),
+  selected: document.getElementById('selected'),
+  selPoster: document.getElementById('sel-poster'),
+  selTitle: document.getElementById('sel-title'),
+  selMeta: document.getElementById('sel-meta'),
+  selBadges: document.getElementById('sel-badges'),
+  selDesc: document.getElementById('sel-desc'),
   myRating: document.getElementById('my-rating'),
   myStatus: document.getElementById('my-status'),
   myType: document.getElementById('my-type'),
@@ -24,7 +28,9 @@ const els = {
   jsonOutput: document.getElementById('json-output')
 };
 
-let current = null; // выбранное произведение (заготовка записи)
+let current = null;      // выбранное произведение (заготовка записи)
+let searchTimer = null;  // дебаунс живого поиска
+let lastQuery = '';
 
 // --- Токены: сохраняем/восстанавливаем ---
 els.tmdbToken.value = localStorage.getItem('tmdbToken') || '';
@@ -68,22 +74,37 @@ function slugify(title, year) {
   return year ? `${s}-${year}` : s;
 }
 
-// --- Поиск ---
-async function search() {
+// --- Живой поиск: срабатывает по мере ввода, с дебаунсом ---
+els.searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
   const q = els.searchInput.value.trim();
-  if (!q) return;
+  if (q.length < 2) {
+    els.searchResults.innerHTML = '';
+    setStatus(els.searchStatus, '');
+    return;
+  }
+  searchTimer = setTimeout(() => search(q), 400);
+});
+
+// Клик мимо списка — закрыть его
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-box')) els.searchResults.innerHTML = '';
+});
+
+async function search(q) {
   if (!els.tmdbToken.value.trim()) {
     setStatus(els.searchStatus, 'Сначала укажите токен TMDb (раздел 1).', true);
     return;
   }
-  setStatus(els.searchStatus, 'Ищу…');
-  els.searchResults.innerHTML = '';
+  lastQuery = q;
   try {
     const data = await tmdbFetch('/search/multi', { query: q, include_adult: 'false' });
+    if (q !== lastQuery) return; // пришёл устаревший ответ — игнорируем
     const results = (data.results || [])
       .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
-      .slice(0, 8);
+      .slice(0, 10);
     if (!results.length) {
+      els.searchResults.innerHTML = '';
       setStatus(els.searchStatus, 'Ничего не найдено.', true);
       return;
     }
@@ -107,8 +128,9 @@ async function search() {
   }
 }
 
-// --- Выбор результата: детали TMDb + рейтинг IMDb из OMDb ---
+// --- Выбор из списка: детали TMDb + рейтинг IMDb из OMDb ---
 async function pick(r) {
+  els.searchResults.innerHTML = '';
   setStatus(els.searchStatus, 'Загружаю детали…');
   try {
     const isMovie = r.media_type === 'movie';
@@ -134,7 +156,7 @@ async function pick(r) {
       } catch (_) { /* OMDb недоступен — оставим null */ }
     }
 
-    // Аниме определяем по жанру Animation (16) + стране/языку — предзаполняем тип
+    // Аниме определяем по жанру Animation (16) + языку — предзаполняем тип
     const isAnimation = (details.genres || []).some(g => g.id === 16);
     const isJapanese = details.original_language === 'ja';
     els.myType.value = isAnimation && isJapanese ? 'anime' : (isMovie ? 'film' : 'series');
@@ -158,28 +180,27 @@ async function pick(r) {
 
     setStatus(els.searchStatus,
       imdbRating === null && omdbKey ? 'Готово (рейтинг IMDb получить не удалось).' :
-      !omdbKey ? 'Готово. Без ключа OMDb рейтинг IMDb не подтянут.' : 'Готово.');
-    renderPreview();
-    els.editSection.hidden = false;
-    els.editSection.scrollIntoView({ behavior: 'smooth' });
+      !omdbKey ? 'Готово. Без ключа OMDb рейтинг IMDb не подтянут.' : '');
+    renderSelected();
   } catch (err) {
     setStatus(els.searchStatus, 'Ошибка: ' + err.message, true);
   }
 }
 
-function renderPreview() {
-  els.preview.innerHTML = `
-    <div class="card">
-      <img class="card-poster" src="${escapeHtml(current.poster)}" alt="">
-      <div class="card-body">
-        <div class="card-title-row">
-          <span class="card-title">${escapeHtml(current.title)}</span>
-          ${current.imdbRating ? `<span class="badge badge-imdb">IMDb ${current.imdbRating}</span>` : ''}
-        </div>
-        <div class="card-meta">${escapeHtml(current.originalTitle)} · ${current.year || ''}</div>
-        <div class="card-desc">${escapeHtml(current.description)}</div>
-      </div>
-    </div>`;
+function renderSelected() {
+  els.selPoster.src = current.poster;
+  els.selTitle.textContent = current.title;
+  els.selMeta.textContent = [current.originalTitle, current.year].filter(Boolean).join(' · ');
+  els.selBadges.innerHTML =
+    current.imdbRating ? `<span class="badge badge-imdb">IMDb ${current.imdbRating}</span>` : '';
+  els.selDesc.textContent = current.description;
+  els.myRating.value = '';
+  els.myComment.value = '';
+  els.myStatus.value = 'watched';
+  els.jsonOutput.hidden = true;
+  setStatus(els.resultStatus, '');
+  els.selected.hidden = false;
+  els.selected.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function buildEntry() {
@@ -202,7 +223,7 @@ els.copyBtn.addEventListener('click', async () => {
     await navigator.clipboard.writeText(json);
     setStatus(els.resultStatus, 'Скопировано! Вставьте запись в массив в data.json (не забудьте запятую между записями).');
   } catch (_) {
-    setStatus(els.resultStatus, 'Скопируйте запись из поля ниже вручную.');
+    setStatus(els.resultStatus, 'Скопируйте запись из поля внизу страницы вручную.');
   }
 });
 
@@ -226,6 +247,3 @@ els.downloadBtn.addEventListener('click', async () => {
   URL.revokeObjectURL(a.href);
   setStatus(els.resultStatus, 'Файл скачан. Замените им data.json в репозитории и закоммитьте.');
 });
-
-els.searchBtn.addEventListener('click', search);
-els.searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });

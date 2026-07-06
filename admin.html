@@ -18,7 +18,7 @@
     .admin-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
     .admin-row label {
       display: flex; flex-direction: column; gap: 4px;
-      font-size: 0.82rem; color: var(--text-dim); flex: 1; min-width: 160px;
+      font-size: 0.82rem; color: var(--text-dim); flex: 1; min-width: 140px;
     }
     input, select, textarea, button.btn {
       background: #10141b;
@@ -36,22 +36,56 @@
     }
     button.btn.secondary { background: transparent; color: var(--text); border-color: var(--border); }
     button.btn:hover { filter: brightness(1.1); }
-    .search-results { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .hint { color: var(--text-dim); font-size: 0.8rem; margin-top: 6px; }
+
+    /* Живой поиск: выпадающий список */
+    .search-box { position: relative; }
+    .search-box input { width: 100%; font-size: 1rem; padding: 12px 14px; }
+    .search-dropdown {
+      position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 10;
+      background: #10141b; border: 1px solid var(--border); border-radius: 10px;
+      max-height: 420px; overflow-y: auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .search-dropdown:empty { display: none; }
     .search-result {
       display: flex; gap: 12px; align-items: center;
-      background: #10141b; border: 1px solid var(--border);
-      border-radius: 8px; padding: 8px 12px; cursor: pointer;
+      padding: 8px 12px; cursor: pointer;
+      border-bottom: 1px solid var(--border);
     }
-    .search-result:hover { border-color: var(--accent); }
-    .search-result img { width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #23293a; }
-    .hint { color: var(--text-dim); font-size: 0.8rem; margin-top: 6px; }
+    .search-result:last-child { border-bottom: none; }
+    .search-result:hover { background: var(--bg-card-hover); }
+    .search-result img { width: 42px; height: 63px; object-fit: cover; border-radius: 4px; background: #23293a; flex-shrink: 0; }
+
+    /* Выбранный фильм: карточка + область редактирования рядом */
+    .selected-wrap { display: flex; gap: 20px; align-items: flex-start; }
+    .selected-wrap[hidden] { display: none; }
+    .selected-poster {
+      width: 200px; min-width: 200px; border-radius: 10px;
+      object-fit: cover; background: #23293a;
+    }
+    .selected-info { flex: 1 1 300px; min-width: 240px; display: flex; flex-direction: column; gap: 10px; }
+    .selected-title { font-size: 1.35rem; font-weight: 800; line-height: 1.25; }
+    .selected-meta { color: var(--text-dim); font-size: 0.88rem; }
+    .selected-desc { color: var(--text-dim); font-size: 0.9rem; }
+    .edit-panel {
+      flex: 0 1 300px; min-width: 260px;
+      background: #10141b; border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .edit-panel h3 { font-size: 0.95rem; color: var(--accent); }
+    .edit-panel label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--text-dim); }
+    .status-msg { font-size: 0.85rem; margin-top: 8px; color: var(--accent-my); }
+    .status-msg.error { color: #f87171; }
     #json-output {
       width: 100%; min-height: 220px; font-family: Consolas, monospace;
       font-size: 0.82rem; white-space: pre; margin-top: 10px;
     }
-    .status-msg { font-size: 0.85rem; margin-top: 8px; color: var(--accent-my); }
-    .status-msg.error { color: #f87171; }
-    #preview .card { cursor: default; }
+    @media (max-width: 760px) {
+      .selected-wrap { flex-direction: column; }
+      .selected-poster { width: 160px; min-width: 160px; }
+      .edit-panel { width: 100%; flex-basis: auto; }
+    }
   </style>
 </head>
 <body>
@@ -79,46 +113,48 @@
     </div>
 
     <div class="admin-section">
-      <h2>2. Поиск произведения</h2>
-      <div class="admin-row">
-        <input id="search-input" type="text" placeholder="Название фильма / сериала / аниме" style="flex:3">
-        <button class="btn" id="search-btn">Найти</button>
+      <h2>2. Добавление фильма</h2>
+      <div class="search-box">
+        <input id="search-input" type="text" autocomplete="off"
+               placeholder="Начните вводить название фильма / сериала / аниме…">
+        <div class="search-dropdown" id="search-results"></div>
       </div>
       <div id="search-status" class="status-msg" hidden></div>
-      <div class="search-results" id="search-results"></div>
-    </div>
 
-    <div class="admin-section" id="edit-section" hidden>
-      <h2>3. Предпросмотр и мои данные</h2>
-      <div id="preview" class="cards" style="margin-bottom:14px"></div>
-      <div class="admin-row">
-        <label>Моя оценка (0–10)
-          <input id="my-rating" type="number" min="0" max="10" step="0.5" placeholder="8.5">
-        </label>
-        <label>Статус
-          <select id="my-status">
-            <option value="watched">Просмотрено</option>
-            <option value="watching">Сейчас смотрю</option>
-          </select>
-        </label>
-        <label>Тип
-          <select id="my-type">
-            <option value="film">Фильм</option>
-            <option value="series">Сериал</option>
-            <option value="anime">Аниме</option>
-          </select>
-        </label>
+      <div class="selected-wrap" id="selected" hidden style="margin-top:18px">
+        <img class="selected-poster" id="sel-poster" src="" alt="">
+        <div class="selected-info">
+          <div class="selected-title" id="sel-title"></div>
+          <div class="selected-meta" id="sel-meta"></div>
+          <div class="film-badges" id="sel-badges"></div>
+          <div class="selected-desc" id="sel-desc"></div>
+        </div>
+        <div class="edit-panel">
+          <h3>Мои данные</h3>
+          <label>Моя оценка (0–10)
+            <input id="my-rating" type="number" min="0" max="10" step="0.5" placeholder="8.5">
+          </label>
+          <label>Статус
+            <select id="my-status">
+              <option value="watched">Просмотрено</option>
+              <option value="watching">Сейчас смотрю</option>
+            </select>
+          </label>
+          <label>Тип
+            <select id="my-type">
+              <option value="film">Фильм</option>
+              <option value="series">Сериал</option>
+              <option value="anime">Аниме</option>
+            </select>
+          </label>
+          <label>Мой комментарий
+            <textarea id="my-comment" rows="3" placeholder="Пара слов о впечатлениях"></textarea>
+          </label>
+          <button class="btn" id="copy-json-btn">Скопировать JSON-запись</button>
+          <button class="btn secondary" id="download-btn">Скачать обновлённый data.json</button>
+          <div id="result-status" class="status-msg" hidden></div>
+        </div>
       </div>
-      <div class="admin-row">
-        <label style="flex:1 1 100%">Мой комментарий
-          <textarea id="my-comment" rows="2" placeholder="Пара слов о впечатлениях"></textarea>
-        </label>
-      </div>
-      <div class="admin-row">
-        <button class="btn" id="copy-json-btn">Скопировать JSON-запись</button>
-        <button class="btn secondary" id="download-btn">Скачать обновлённый data.json</button>
-      </div>
-      <div id="result-status" class="status-msg" hidden></div>
       <textarea id="json-output" readonly hidden></textarea>
     </div>
   </div>

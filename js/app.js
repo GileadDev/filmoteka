@@ -66,7 +66,7 @@ function cardHtml(item) {
     item.status === 'watching' ? `<span class="badge badge-watching">Смотрю</span>` : ''
   ].join('');
   return `
-    <a class="card" href="film.html?id=${encodeURIComponent(item.id)}" target="_blank" rel="noopener">
+    <a class="card" href="film.html?id=${encodeURIComponent(item.id)}">
       <img class="card-poster" src="${escapeHtml(item.poster)}" alt=""
            loading="lazy" onerror="this.src='${PLACEHOLDER_POSTER}'">
       <div class="card-body">
@@ -85,7 +85,7 @@ function cardHtml(item) {
 
 function gridItemHtml(item, rank) {
   return `
-    <a class="grid-item" href="film.html?id=${encodeURIComponent(item.id)}" target="_blank" rel="noopener">
+    <a class="grid-item" href="film.html?id=${encodeURIComponent(item.id)}">
       <img src="${escapeHtml(item.poster)}" alt="" loading="lazy" onerror="this.src='${PLACEHOLDER_POSTER}'">
       <span class="grid-rank">#${rank}</span>
       ${item.myRating ? `<span class="badge badge-my grid-rating">${item.myRating}</span>` : ''}
