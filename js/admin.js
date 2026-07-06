@@ -24,8 +24,13 @@ const els = {
   myComment: document.getElementById('my-comment'),
   copyBtn: document.getElementById('copy-json-btn'),
   downloadBtn: document.getElementById('download-btn'),
+  addBtn: document.getElementById('add-btn'),
   resultStatus: document.getElementById('result-status'),
-  jsonOutput: document.getElementById('json-output')
+  jsonOutput: document.getElementById('json-output'),
+  ghToken: document.getElementById('gh-token'),
+  ghOwner: document.getElementById('gh-owner'),
+  ghRepo: document.getElementById('gh-repo'),
+  ghBranch: document.getElementById('gh-branch')
 };
 
 let current = null;      // выбранное произведение (заготовка записи)
@@ -37,6 +42,36 @@ els.tmdbToken.value = localStorage.getItem('tmdbToken') || '';
 els.omdbToken.value = localStorage.getItem('omdbToken') || '';
 els.tmdbToken.addEventListener('change', () => localStorage.setItem('tmdbToken', els.tmdbToken.value.trim()));
 els.omdbToken.addEventListener('change', () => localStorage.setItem('omdbToken', els.omdbToken.value.trim()));
+
+// --- Настройки GitHub: автозаполнение из адреса + сохранение ---
+function deriveRepo() {
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+  if (!m) return null;
+  const seg = location.pathname.split('/').filter(Boolean);
+  return { owner: m[1], repo: seg[0] || '' };
+}
+const derived = deriveRepo();
+els.ghToken.value = localStorage.getItem('ghToken') || '';
+els.ghOwner.value = localStorage.getItem('ghOwner') || (derived && derived.owner) || 'GileadDev';
+els.ghRepo.value = localStorage.getItem('ghRepo') || (derived && derived.repo) || 'filmoteka';
+els.ghBranch.value = localStorage.getItem('ghBranch') || 'main';
+[['ghToken', els.ghToken], ['ghOwner', els.ghOwner], ['ghRepo', els.ghRepo], ['ghBranch', els.ghBranch]]
+  .forEach(([key, el]) => el.addEventListener('change', () => localStorage.setItem(key, el.value.trim())));
+
+// --- Base64 <-> UTF-8 (для содержимого файла в GitHub API) ---
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+function base64ToUtf8(b64) {
+  const bin = atob(b64.replace(/\s/g, ''));
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
 
 // TMDb: поддерживаем и v3 api_key, и v4 Bearer-токен (v4 начинается с "ey")
 function tmdbFetch(path, params = {}) {
@@ -212,6 +247,64 @@ function buildEntry() {
     status: els.myStatus.value
   };
 }
+
+// --- Кнопка «Добавить в фильмотеку» (запись в data.json через GitHub API) ---
+async function addToRepo() {
+  const token = els.ghToken.value.trim();
+  const owner = els.ghOwner.value.trim();
+  const repo = els.ghRepo.value.trim();
+  const branch = els.ghBranch.value.trim() || 'main';
+  if (!token) { setStatus(els.resultStatus, 'Укажите GitHub-токен в разделе 1.', true); return; }
+  if (!owner || !repo) { setStatus(els.resultStatus, 'Укажите владельца и репозиторий в разделе 1.', true); return; }
+
+  const headers = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' };
+  const apiBase = `https://api.github.com/repos/${owner}/${repo}/contents/data.json`;
+  const entry = buildEntry();
+
+  setStatus(els.resultStatus, 'Сохраняю в GitHub…');
+  try {
+    // 1. Текущее содержимое data.json (нужен sha для обновления)
+    let sha = null, data = [];
+    const getRes = await fetch(`${apiBase}?ref=${encodeURIComponent(branch)}`, { headers });
+    if (getRes.ok) {
+      const j = await getRes.json();
+      sha = j.sha;
+      try { data = JSON.parse(base64ToUtf8(j.content)); } catch (_) { data = []; }
+      if (!Array.isArray(data)) data = [];
+    } else if (getRes.status !== 404) {
+      throw new Error('чтение data.json: HTTP ' + getRes.status);
+    }
+
+    // 2. Добавляем (или заменяем, если такой id уже есть)
+    const idx = data.findIndex(i => i.id === entry.id);
+    let replaced = false;
+    if (idx >= 0) { data[idx] = entry; replaced = true; } else { data.unshift(entry); }
+
+    // 3. Коммитим обновлённый файл
+    const body = {
+      message: `${replaced ? 'Обновлён' : 'Добавлен'}: ${entry.title}`,
+      content: utf8ToBase64(JSON.stringify(data, null, 2) + '\n'),
+      branch
+    };
+    if (sha) body.sha = sha;
+    const putRes = await fetch(apiBase, { method: 'PUT', headers, body: JSON.stringify(body) });
+    if (!putRes.ok) {
+      let detail = 'HTTP ' + putRes.status;
+      try { const e = await putRes.json(); if (e.message) detail += ' — ' + e.message; } catch (_) {}
+      throw new Error('запись data.json: ' + detail);
+    }
+
+    setStatus(els.resultStatus,
+      `✓ «${entry.title}» ${replaced ? 'обновлён' : 'добавлен'}! Сайт обновится через минуту.`);
+    // Готовим форму к следующему добавлению
+    els.searchInput.value = '';
+    els.searchInput.focus();
+    setTimeout(() => { els.selected.hidden = true; current = null; }, 1500);
+  } catch (err) {
+    setStatus(els.resultStatus, 'Ошибка: ' + err.message, true);
+  }
+}
+els.addBtn.addEventListener('click', addToRepo);
 
 // --- Кнопка «Скопировать JSON» ---
 els.copyBtn.addEventListener('click', async () => {

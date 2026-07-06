@@ -110,6 +110,30 @@
         <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" style="color:var(--accent)">omdbapi.com/apikey.aspx</a>.
         Ключи сохраняются автоматически и никуда не отправляются, кроме самих TMDb/OMDb.
       </div>
+
+      <h2 style="margin-top:20px">GitHub-токен (для кнопки «Добавить»)</h2>
+      <div class="admin-row">
+        <label style="flex:2 1 100%">Personal Access Token
+          <input id="gh-token" type="password" placeholder="github_pat_… или ghp_…">
+        </label>
+      </div>
+      <div class="admin-row">
+        <label>Владелец (owner)
+          <input id="gh-owner" type="text" placeholder="GileadDev">
+        </label>
+        <label>Репозиторий
+          <input id="gh-repo" type="text" placeholder="filmoteka">
+        </label>
+        <label>Ветка
+          <input id="gh-branch" type="text" placeholder="main">
+        </label>
+      </div>
+      <div class="hint">
+        Токен даёт кнопке «Добавить» право записать <code>data.json</code> в ваш репозиторий.
+        Создать: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:var(--accent)">github.com → Fine-grained token</a> →
+        Repository access: только <b>filmoteka</b> → Permissions → <b>Contents: Read and write</b>.
+        Хранится только в вашем браузере, в репозиторий не попадает. Поля владельца/репозитория заполняются автоматически на опубликованном сайте.
+      </div>
     </div>
 
     <div class="admin-section">
@@ -150,9 +174,15 @@
           <label>Мой комментарий
             <textarea id="my-comment" rows="3" placeholder="Пара слов о впечатлениях"></textarea>
           </label>
-          <button class="btn" id="copy-json-btn">Скопировать JSON-запись</button>
-          <button class="btn secondary" id="download-btn">Скачать обновлённый data.json</button>
+          <button class="btn" id="add-btn">➕ Добавить в фильмотеку</button>
           <div id="result-status" class="status-msg" hidden></div>
+          <details style="margin-top:6px">
+            <summary style="cursor:pointer;color:var(--text-dim);font-size:0.82rem">Другие способы (вручную)</summary>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+              <button class="btn secondary" id="copy-json-btn">Скопировать JSON-запись</button>
+              <button class="btn secondary" id="download-btn">Скачать обновлённый data.json</button>
+            </div>
+          </details>
         </div>
       </div>
       <textarea id="json-output" readonly hidden></textarea>
