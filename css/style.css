@@ -298,6 +298,22 @@ a.col-part:hover { border-color: var(--accent); }
 .col-part.missing { color: var(--text-dim); }
 .badge-missing { background: #2a303c; color: var(--text-dim); font-weight: 600; }
 
+/* Сетка сезонов сериала/аниме */
+.seasons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.season-card {
+  background: #10141b;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.season-num { font-weight: 700; font-size: 0.9rem; }
+.season-name { font-size: 0.8rem; margin-top: 2px; }
+.season-meta { color: var(--text-dim); font-size: 0.8rem; margin-top: 2px; }
+
 /* ===== Панель администратора (film.html, видна только с токеном) ===== */
 .admin-panel {
   display: flex;

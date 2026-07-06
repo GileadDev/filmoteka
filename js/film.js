@@ -35,6 +35,24 @@ function collectionHtml(item, items) {
   return `<div class="film-collection"><h3>🎞 Серия: ${escapeHtml(col.name)}</h3>${rows}</div>`;
 }
 
+// Сетка сезонов (для сериалов и аниме)
+function seasonsHtml(item) {
+  const ss = item.seasons;
+  if (!Array.isArray(ss) || !ss.length) return '';
+  const cards = ss.map(s => {
+    const defaultName = 'Сезон ' + s.seasonNumber;
+    const extraName = s.name && s.name !== defaultName
+      ? `<div class="season-name">${escapeHtml(s.name)}</div>` : '';
+    const meta = [s.year, s.episodes ? s.episodes + ' сер.' : null].filter(Boolean).join(' · ');
+    return `<div class="season-card">
+      <div class="season-num">${defaultName}</div>
+      ${extraName}
+      <div class="season-meta">${meta}</div>
+    </div>`;
+  }).join('');
+  return `<div class="film-collection"><h3>📺 Сезоны: ${ss.length}</h3><div class="seasons-grid">${cards}</div></div>`;
+}
+
 // Панель администратора — только при активном входе (сессия Supabase)
 function adminPanelHtml(item, isAdmin) {
   if (!isAdmin) return '';
@@ -140,6 +158,7 @@ async function init() {
       <p class="film-desc">${escapeHtml(item.description || '')}</p>
       ${item.myComment ? `<div class="film-comment"><b>Мой комментарий:</b><br>${escapeHtml(item.myComment)}</div>` : ''}
       ${collectionHtml(item, items)}
+      ${seasonsHtml(item)}
       ${item.imdbId ? `<div class="film-links"><a href="https://www.imdb.com/title/${encodeURIComponent(item.imdbId)}/" target="_blank" rel="noopener">Страница на IMDb ↗</a></div>` : ''}
       ${adminPanelHtml(item, isAdmin)}
     </div>`;

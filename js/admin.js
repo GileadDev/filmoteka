@@ -171,6 +171,31 @@ async function search(q) {
   }
 }
 
+// Дополнительные данные: коллекция (для фильмов) или сезоны (для сериалов/аниме)
+async function enrichExtras(entry, details, isMovie) {
+  if (isMovie) {
+    if (!details.belongs_to_collection) return;
+    try {
+      const col = await tmdbFetch('/collection/' + details.belongs_to_collection.id);
+      const parts = (col.parts || [])
+        .filter(p => p.release_date)  // только вышедшие
+        .sort((a, b) => a.release_date.localeCompare(b.release_date))
+        .map(p => ({ tmdbId: p.id, title: p.title, year: Number(p.release_date.slice(0, 4)) || null }));
+      if (parts.length > 1) entry.collection = { id: col.id, name: col.name, parts };
+    } catch (_) { /* коллекция недоступна — просто без неё */ }
+  } else {
+    const seasons = (details.seasons || [])
+      .filter(s => s.season_number > 0)  // спецвыпуски (сезон 0) не показываем
+      .map(s => ({
+        seasonNumber: s.season_number,
+        name: s.name || ('Сезон ' + s.season_number),
+        year: s.air_date ? Number(s.air_date.slice(0, 4)) : null,
+        episodes: s.episode_count || null
+      }));
+    if (seasons.length) entry.seasons = seasons;
+  }
+}
+
 // --- Выбор из списка: детали TMDb + рейтинг IMDb из OMDb ---
 async function pick(r) {
   els.searchResults.innerHTML = '';
@@ -221,18 +246,9 @@ async function pick(r) {
       tmdbId: details.id
     };
 
-    // Серия фильмов (коллекция TMDb) — «запекаем» список частей в запись,
-    // чтобы публичный сайт мог показать ветку франшизы без запросов к API
-    if (isMovie && details.belongs_to_collection) {
-      try {
-        const col = await tmdbFetch('/collection/' + details.belongs_to_collection.id);
-        const parts = (col.parts || [])
-          .filter(p => p.release_date)  // только вышедшие
-          .sort((a, b) => a.release_date.localeCompare(b.release_date))
-          .map(p => ({ tmdbId: p.id, title: p.title, year: Number(p.release_date.slice(0, 4)) || null }));
-        if (parts.length > 1) current.collection = { id: col.id, name: col.name, parts };
-      } catch (_) { /* коллекция недоступна — просто без неё */ }
-    }
+    // Серия фильмов / сезоны сериала — «запекаем» в запись,
+    // чтобы публичный сайт показывал их без запросов к API
+    await enrichExtras(current, details, isMovie);
 
     setStatus(els.searchStatus,
       imdbRating === null && omdbKey ? 'Готово (рейтинг IMDb получить не удалось).' :
@@ -341,6 +357,17 @@ els.downloadBtn.addEventListener('click', async () => {
     els.myStatus.value = item.status || 'watched';
     els.myType.value = item.type || 'film';
     setStatus(els.searchStatus, `Режим редактирования: «${item.title}». Измените поля и нажмите «Добавить» — запись обновится.`);
+
+    // Освежаем серию/сезоны из TMDb (если задан токен) — так у старых записей
+    // появляются сезоны и новые части серий после простого «Редактировать → Добавить»
+    if (els.tmdbToken.value.trim() && item.tmdbId) {
+      try {
+        const isMovie = item.type === 'film';
+        const details = await tmdbFetch(`/${isMovie ? 'movie' : 'tv'}/${item.tmdbId}`);
+        await enrichExtras(current, details, isMovie);
+        setStatus(els.searchStatus, `Режим редактирования: «${item.title}». Сезоны/серия обновлены из TMDb — нажмите «Добавить», чтобы сохранить.`);
+      } catch (_) { /* не критично — сохранится без обновления */ }
+    }
   } catch (err) {
     setStatus(els.searchStatus, 'Ошибка загрузки записи: ' + err.message, true);
   }

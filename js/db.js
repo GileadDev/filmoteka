@@ -30,7 +30,8 @@ const DB = (() => {
       dateAdded: r.date_added,
       imdbId: r.imdb_id,
       tmdbId: r.tmdb_id,
-      collection: r.collection
+      collection: r.collection,
+      seasons: r.seasons
     };
   }
 
@@ -50,7 +51,8 @@ const DB = (() => {
       date_added: i.dateAdded,
       imdb_id: i.imdbId || null,
       tmdb_id: i.tmdbId || null,
-      collection: i.collection || null
+      collection: i.collection || null,
+      seasons: i.seasons || null
     };
   }
 

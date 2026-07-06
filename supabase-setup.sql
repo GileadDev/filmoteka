@@ -17,8 +17,12 @@ create table if not exists public.films (
   date_added date not null default current_date,
   imdb_id text,
   tmdb_id bigint,
-  collection jsonb
+  collection jsonb,
+  seasons jsonb
 );
+
+-- Для баз, созданных до появления сезонов:
+alter table public.films add column if not exists seasons jsonb;
 
 -- 2. Права: читать могут все (публичный сайт), писать — только вошедший админ
 alter table public.films enable row level security;
