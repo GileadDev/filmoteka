@@ -111,11 +111,17 @@ function escapeHtml(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function slugify(title, year) {
-  const s = String(title).toLowerCase()
+function slugCore(s) {
+  return String(s || '').toLowerCase()
     .replace(/[^a-z0-9а-яё]+/gi, '-')
     .replace(/^-+|-+$/g, '');
-  return year ? `${s}-${year}` : s;
+}
+
+// id записи: из оригинального названия; если оно не латиница/кириллица
+// (например, японское) — из русского названия; в крайнем случае из tmdbId
+function makeId(originalTitle, title, year, tmdbId) {
+  const core = slugCore(originalTitle) || slugCore(title) || ('tmdb-' + tmdbId);
+  return year ? `${core}-${year}` : core;
 }
 
 // --- Живой поиск: срабатывает по мере ввода, с дебаунсом ---
@@ -231,7 +237,7 @@ async function pick(r) {
     els.myType.value = isAnimation && isJapanese ? 'anime' : (isMovie ? 'film' : 'series');
 
     current = {
-      id: slugify(originalTitle || title, year),
+      id: makeId(originalTitle, title, year, details.id),
       title,
       originalTitle,
       type: els.myType.value,
@@ -307,6 +313,13 @@ async function addToDb() {
   const entry = buildEntry();
   setStatus(els.resultStatus, 'Сохраняю…');
   try {
+    // Защита от дублей: если это произведение уже есть в базе (по tmdbId),
+    // обновляем существующую запись, а не создаём вторую
+    if (entry.tmdbId) {
+      const existing = (await DB.loadAll())
+        .find(i => i.tmdbId === entry.tmdbId && i.id !== entry.id);
+      if (existing) entry.id = existing.id;
+    }
     // «Сейчас смотрю» может быть только у одного фильма
     if (entry.status === 'watching') await DB.clearWatchingExcept(entry.id);
     await DB.upsert(entry);
