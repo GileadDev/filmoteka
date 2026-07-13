@@ -44,8 +44,11 @@ function getVisibleItems() {
   // Главная — применяем выбранный фильтр
   if (state.filter === 'watching') {
     items = items.filter(i => i.status === 'watching');
-    items.sort((a, b) => (b.dateAdded || '').localeCompare(a.dateAdded || ''));
-  } else if (state.filter === 'rating') {
+  }
+
+  // Выбран конкретный тип (Фильмы/Сериалы/Аниме) — сортируем по оценке
+  // от высшей к низшей; иначе по выбранному фильтру
+  if (state.type !== 'all' || state.filter === 'rating') {
     items.sort((a, b) => (b.myRating || 0) - (a.myRating || 0));
   } else {
     items.sort((a, b) => (b.dateAdded || '').localeCompare(a.dateAdded || ''));
