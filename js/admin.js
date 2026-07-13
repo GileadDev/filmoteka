@@ -21,6 +21,7 @@ const els = {
   selDesc: document.getElementById('sel-desc'),
   myRating: document.getElementById('my-rating'),
   myStatus: document.getElementById('my-status'),
+  myPlanned: document.getElementById('my-planned'),
   myType: document.getElementById('my-type'),
   myComment: document.getElementById('my-comment'),
   copyBtn: document.getElementById('copy-json-btn'),
@@ -284,6 +285,8 @@ function renderSelected() {
   els.myRating.value = '';
   els.myComment.value = '';
   els.myStatus.value = 'watched';
+  els.myPlanned.checked = false;
+  els.myStatus.disabled = false;
   els.jsonOutput.hidden = true;
   setStatus(els.resultStatus, '');
   els.selected.hidden = false;
@@ -300,9 +303,14 @@ function buildEntry() {
     type: els.myType.value,
     myRating: Number.isNaN(rating) ? null : rating,
     myComment: els.myComment.value.trim(),
-    status: els.myStatus.value
+    status: els.myPlanned.checked ? 'planned' : els.myStatus.value
   };
 }
+
+// «Буду смотреть» — отдельный статус: пока отмечено, обычный статус не действует
+els.myPlanned.addEventListener('change', () => {
+  els.myStatus.disabled = els.myPlanned.checked;
+});
 
 // --- Кнопка «Добавить в фильмотеку» (запись в базу, мгновенно) ---
 async function addToDb() {
@@ -380,7 +388,9 @@ els.downloadBtn.addEventListener('click', async () => {
     // Предзаполняем мои поля сохранёнными значениями (renderSelected их очищает)
     els.myRating.value = item.myRating ?? '';
     els.myComment.value = item.myComment || '';
-    els.myStatus.value = item.status || 'watched';
+    els.myPlanned.checked = item.status === 'planned';
+    els.myStatus.disabled = els.myPlanned.checked;
+    els.myStatus.value = item.status === 'planned' ? 'watched' : (item.status || 'watched');
     els.myType.value = item.type || 'film';
     setStatus(els.searchStatus, `Режим редактирования: «${item.title}». Измените поля и нажмите «Добавить» — запись обновится.`);
 

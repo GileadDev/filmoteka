@@ -2,7 +2,7 @@
 // Для администратора (выполнен вход в админке) — панель управления:
 // чекбокс «Сейчас смотрю», кнопки «Редактировать» и «Удалить».
 const TYPE_LABELS = { film: 'Фильм', series: 'Сериал', anime: 'Аниме' };
-const STATUS_LABELS = { watched: 'Просмотрено', watching: 'Сейчас смотрю' };
+const STATUS_LABELS = { watched: 'Просмотрено', watching: 'Сейчас смотрю', planned: 'Буду смотреть' };
 const PLACEHOLDER_POSTER =
   'data:image/svg+xml;utf8,' + encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300">' +

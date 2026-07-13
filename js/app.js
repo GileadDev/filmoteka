@@ -1,7 +1,7 @@
 // Логика главной: загрузка data.json, вкладки, фильтры, рендер
 const state = {
   items: [],
-  tab: 'home',       // home | top | new
+  tab: 'home',       // home | top | new | planned
   filter: 'recent',  // recent | rating | watching
   type: 'all'        // all | film | series | anime
 };
@@ -31,6 +31,14 @@ function getVisibleItems() {
   if (state.type !== 'all') {
     items = items.filter(i => i.type === state.type);
   }
+
+  // «Буду смотреть» — отдельный список; в остальных вкладках эти записи не показываем
+  if (state.tab === 'planned') {
+    items = items.filter(i => i.status === 'planned');
+    items.sort((a, b) => (b.dateAdded || '').localeCompare(a.dateAdded || ''));
+    return items;
+  }
+  items = items.filter(i => i.status !== 'planned');
 
   if (state.tab === 'top') {
     items.sort((a, b) => (b.myRating || 0) - (a.myRating || 0));
